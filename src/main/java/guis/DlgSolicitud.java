@@ -13,6 +13,15 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTextArea;
 import java.awt.Font;
+import java.util.Date;
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
+
+import entitis.Actividad;
+import entitis.Solicitud;
+import util.JPAUtil;
 
 public class DlgSolicitud extends JDialog implements ActionListener {
 
@@ -245,26 +254,226 @@ public class DlgSolicitud extends JDialog implements ActionListener {
 
 	void cargarActividades() {
 
+	    EntityManager em = JPAUtil.getEntityManager();
+
+	    List<Actividad> lista = em.createQuery(
+	            "select a from Actividad a",
+	            Actividad.class)
+	            .getResultList();
+
+	    for (Actividad a : lista) {
+	        cboActividad.addItem(a);
+	    }
+
+	    em.close();
 	}
 
 	void listar() {
 
+	    EntityManager em = JPAUtil.getEntityManager();
+
+	    List<Solicitud> lista = em.createQuery(
+	            "select s from Solicitud s",
+	            Solicitud.class)
+	            .getResultList();
+
+	    txtSalida.setText("");
+
+	    for (Solicitud s : lista) {
+
+	        imprimir("---------------------------------------------------------");
+	        imprimir("Nro. Solicitud....: " + s.getNroSolicitud());
+	        imprimir("Fecha de registro.: " + s.getFechaReg());
+	        imprimir("Actividad.........: " + s.getActividad().getDescripcion());
+	        imprimir("Fecha de inicio...: " + s.getActividad().getFechaInicio());
+	        imprimir("Nro de vacantes...: " + s.getActividad().getNroVacantes());
+	        imprimir("Categoria.........: "
+	                + s.getActividad().getCategoria().getDescripcion());
+	        imprimir("Archivo adjunto...: " + s.getArchivoAdjunto());
+
+	        String estado = "";
+
+	        if (s.getEstado().equals("PE"))
+	            estado = "Pendiente";
+	        else if (s.getEstado().equals("AC"))
+	            estado = "Activo";
+	        else if (s.getEstado().equals("AN"))
+	            estado = "Anulado";
+
+	        imprimir("Estado............: " + estado);
+	        imprimir();
+	    }
+
+	    em.close();
 	}
 
 	void adicionar() {
 
+	    EntityManager em = JPAUtil.getEntityManager();
+	    EntityTransaction tx = em.getTransaction();
+
+	    try {
+
+	        Solicitud s = new Solicitud();
+
+	        s.setArchivoAdjunto(txtArchivoAdjunto.getText());
+
+	        s.setActividad(
+	                (Actividad) cboActividad.getSelectedItem());
+
+	        s.setEstado(
+	                cboEstado.getSelectedItem().toString());
+
+	        s.setFechaReg(new Date());
+
+	        tx.begin();
+	        em.persist(s);
+	        tx.commit();
+
+	        mensajeInfo("Solicitud registrada correctamente");
+	        limpiar();
+
+	    } catch (Exception e) {
+
+	        if (tx.isActive())
+	            tx.rollback();
+
+	        mensajeError(e.getMessage());
+
+	    } finally {
+
+	        em.close();
+	    }
 	}
 	
 	void buscar() {
 
+	    EntityManager em = JPAUtil.getEntityManager();
+
+	    try {
+
+	        int codigo =
+	                Integer.parseInt(txtIdSolicitud.getText());
+
+	        Solicitud s =
+	                em.find(Solicitud.class, codigo);
+
+	        if (s == null) {
+
+	            mensajeError("Solicitud no existe");
+	            return;
+	        }
+
+	        txtArchivoAdjunto.setText(
+	                s.getArchivoAdjunto());
+
+	        cboActividad.setSelectedItem(
+	                s.getActividad());
+
+	        cboEstado.setSelectedItem(
+	                s.getEstado());
+
+	        txtFechaRegistro.setText(
+	                s.getFechaReg().toString());
+
+	        habilitarOk();
+
+	    } catch (Exception e) {
+
+	        mensajeError(e.getMessage());
+
+	    } finally {
+
+	        em.close();
+	    }
 	}
 
 	void modificar() {
 
-	}
+	    EntityManager em = JPAUtil.getEntityManager();
+	    EntityTransaction tx = em.getTransaction();
 
+	    try {
+
+	        int codigo =
+	                Integer.parseInt(txtIdSolicitud.getText());
+
+	        Solicitud s =
+	                em.find(Solicitud.class, codigo);
+
+	        if (s == null) {
+
+	            mensajeError("Solicitud no existe");
+	            return;
+	        }
+
+	        s.setArchivoAdjunto(
+	                txtArchivoAdjunto.getText());
+
+	        s.setActividad(
+	                (Actividad) cboActividad.getSelectedItem());
+
+	        s.setEstado(
+	                cboEstado.getSelectedItem().toString());
+
+	        tx.begin();
+	        em.merge(s);
+	        tx.commit();
+
+	        mensajeInfo("Solicitud modificada correctamente");
+
+	        limpiar();
+
+	    } catch (Exception e) {
+
+	        if (tx.isActive())
+	            tx.rollback();
+
+	        mensajeError(e.getMessage());
+
+	    } finally {
+
+	        em.close();
+	    }
+	}
 	void eliminar() {
 
+	    EntityManager em = JPAUtil.getEntityManager();
+	    EntityTransaction tx = em.getTransaction();
+
+	    try {
+
+	        int codigo =
+	                Integer.parseInt(txtIdSolicitud.getText());
+
+	        Solicitud s =
+	                em.find(Solicitud.class, codigo);
+
+	        if (s == null) {
+
+	            mensajeError("Solicitud no existe");
+	            return;
+	        }
+
+	        tx.begin();
+	        em.remove(s);
+	        tx.commit();
+
+	        mensajeInfo("Solicitud eliminada correctamente");
+
+	        limpiar();
+
+	    } catch (Exception e) {
+
+	        if (tx.isActive())
+	            tx.rollback();
+
+	        mensajeError(e.getMessage());
+
+	    } finally {
+
+	        em.close();
+	    }
 	}
 
 	// M�todos tipo void (con par�metros)
